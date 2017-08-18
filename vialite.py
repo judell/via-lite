@@ -105,7 +105,6 @@ def via2(request):
 config = Configurator()
 config.scan()
 
-config.add_route('proxy', '/proxy')
 config.add_route('via', '/via')
 config.add_route('via2', '/via2')
 
