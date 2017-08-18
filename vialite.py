@@ -36,22 +36,23 @@ from wsgiref.simple_server import make_server
 from pyramid.config import Configurator
 from pyramid.response import Response
 
-def passthrough(headers):
-    EXCLUDE_HEADERS = [
-        'content-length',  # per https://github.com/nickstenning/injecture/blob/master/proxy.go#L39
-                           # // Remove the Content-Length header -- we've changed the length and Go's
-	                       # // HTTP server will happily serve this as T-E: chunked.
+SUPPRESS_HEADERS = [
+        'accept-encoding',
+        'connection',
+        'keep-alive',
+        'host'
+    ]
 
-        'connection',      # unsure about this
+EXCLUDE_HEADERS = [
+    'content-length',
+    'content-encoding'
+    ]
 
-        'content-encoding' # because if we decoded gzipped content it isn't gzipped anymore
-                           # unsure of full ramifications
-    ]         
-
-    for key in headers.keys():
-        lowered_key = key.lower()
-        if lowered_key in EXCLUDE_HEADERS:
-            del headers[lowered_key]
+def restrict_headers(headers, list):
+    for header in headers.keys():
+        lowered_header = header.lower()
+        if lowered_header in list:
+            del headers[lowered_header]
     return headers
 
 def join_fn(tag, url, match):
@@ -64,17 +65,18 @@ def rewrite(content, url):
     content = re.sub('src' + pattern, lambda x: join_fn('src', url, x.group(1)), content, count=0, flags=re.IGNORECASE)
     return content
 
-# The simplest possible replacement for via
+# The simplest possible replacement for via?
 @view_config( route_name='via' )
 def via(request):
     qs = parse_qs(request.query_string)
     url = qs['url'][0]
     headers = request.headers
-    r1 = requests.get(url)
+    headers = restrict_headers(request.headers, SUPPRESS_HEADERS)
+    r1 = requests.get(url, headers=headers)
     content = rewrite(r1.content, url)
     script = """<script async defer type="text/javascript" src="https://hypothes.is/embed.js"></script>""" 
     content = content.replace('</head>', script + '</head>')
-    headers = passthrough(r1.headers)
+    headers = restrict_headers(r1.headers, EXCLUDE_HEADERS)
     r2 = Response(body=content, headers=headers)
     return r2
 
@@ -85,7 +87,7 @@ def via(request):
 def via2(request):
     qs = parse_qs(request.query_string)
     url = qs['url'][0] 
-    r1 = requests.get(url)
+    r1 = requests.get(url, timeout=1)
     content = rewrite(r1.content, url)
     script = """<script async defer type="text/javascript" src="https://hyp.jonudell.info/embed.js"></script>
 <script class="js-hypothesis-config" type="application/json">
@@ -96,12 +98,11 @@ def via2(request):
 </script> 
 """ 
     content = content.replace('</head>', script + '</head>')
-    headers = passthrough(r1.headers)
+    headers = restrict_headers(r1.headers, EXCLUDE_HEADERS)
     r2 = Response(body=content, headers=headers)
     return r2
 
 config = Configurator()
-
 config.scan()
 
 config.add_route('proxy', '/proxy')
@@ -111,7 +112,11 @@ config.add_route('via2', '/via2')
 app = config.make_wsgi_app()
 
 if __name__ == '__main__': 
-
     server = make_server(server_host, server_port, app)
     server.serve_forever()
     
+# http://thehill.com/homenews/house/346939-dem-to-introduce-impeachment-articles-over-charlottesville
+# https://scienmag.com/fasting-blood-sugar-and-fasting-insulin-identified-as-new-biomarkers-for-weight-loss/
+# https://therivardreport.com/armed-group-appears-at-council-to-oppose-statues-removal/
+# https://academic.oup.com/gigascience/article/6/7/1/3867068/Comprehensive-analysis-of-microorganisms
+# https://theintercept.com/2017/08/13/the-misguided-attacks-on-aclu-for-defending-neo-nazis-free-speech-rights-in-charlottesville/?comments=1#comments
