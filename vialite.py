@@ -75,7 +75,7 @@ def via(request):
     r1 = requests.get(url, headers=headers)
     content = rewrite(r1.content, url)
     script = """<script async defer type="text/javascript" src="https://hypothes.is/embed.js"></script>""" 
-    content = content.replace('</head>', script + '</head>')
+    content = content.replace('</head>', script + '</head>') # todo: use regex here
     headers = restrict_headers(r1.headers, EXCLUDE_HEADERS)
     r2 = Response(body=content, headers=headers)
     return r2
@@ -113,9 +113,18 @@ app = config.make_wsgi_app()
 if __name__ == '__main__': 
     server = make_server(server_host, server_port, app)
     server.serve_forever()
+
+# test suite
     
 # http://thehill.com/homenews/house/346939-dem-to-introduce-impeachment-articles-over-charlottesville
 # https://scienmag.com/fasting-blood-sugar-and-fasting-insulin-identified-as-new-biomarkers-for-weight-loss/
 # https://therivardreport.com/armed-group-appears-at-council-to-oppose-statues-removal/
 # https://academic.oup.com/gigascience/article/6/7/1/3867068/Comprehensive-analysis-of-microorganisms
 # https://theintercept.com/2017/08/13/the-misguided-attacks-on-aclu-for-defending-neo-nazis-free-speech-rights-in-charlottesville/?comments=1#comments
+# http://www.politico.com/story/2017/08/18/presidents-arts-and-humanities-committee-resigns-over-trumps-charlottesville-response-241781?lo=ap_a1
+# http://www.jneurosci.org/content/36/42/10908.long
+
+# errors
+
+# https://hyp.jonudell.info/via?url=https://www.facebook.com/mittromney/posts/10154652303536121
+# HTTPException: got more than 100 headers
